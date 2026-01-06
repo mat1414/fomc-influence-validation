@@ -30,9 +30,23 @@ def load_all_data() -> Dict[str, pd.DataFrame]:
     return data
 
 
-def get_meeting_decisions(ymd: str, decisions_df: pd.DataFrame) -> pd.DataFrame:
-    """Get all decisions for a meeting."""
-    return decisions_df[decisions_df['ymd'] == ymd].reset_index(drop=True)
+def get_meeting_decisions(ymd: str, influence_df: pd.DataFrame) -> pd.DataFrame:
+    """Get all decisions for a meeting from the influence data.
+
+    Note: We extract decisions from the influence data itself, not from
+    adopted_decisions.pkl, because the description text differs between files.
+    """
+    meeting_data = influence_df[influence_df['ymd'] == ymd]
+
+    # Get unique decisions based on description
+    unique_decisions = meeting_data.drop_duplicates(subset=['description'])[['description', 'decision_id']].copy()
+    unique_decisions = unique_decisions.sort_values('decision_id').reset_index(drop=True)
+
+    # Add placeholder columns for compatibility
+    unique_decisions['type'] = ''
+    unique_decisions['score'] = 0
+
+    return unique_decisions
 
 
 def get_decision_speakers(ymd: str, description: str, influence_df: pd.DataFrame) -> List[str]:
@@ -160,7 +174,7 @@ def search_transcript(transcript_text: str, search_term: str) -> List[Dict]:
 
 def get_meeting_stats(ymd: str, data: Dict) -> Dict:
     """Get statistics for a meeting."""
-    decisions = get_meeting_decisions(ymd, data['decisions'])
+    decisions = get_meeting_decisions(ymd, data['influence'])
     influence = data['influence'][data['influence']['ymd'] == ymd]
 
     num_decisions = len(decisions)
