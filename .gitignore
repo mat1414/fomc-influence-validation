@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.DS_Store
+data/coding_results/*.json
+data/coding_results/*.csv
+!data/coding_results/.gitkeep
