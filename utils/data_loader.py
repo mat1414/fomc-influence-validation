@@ -35,11 +35,15 @@ def get_meeting_decisions(ymd: str, influence_df: pd.DataFrame) -> pd.DataFrame:
 
     Note: We extract decisions from the influence data itself, not from
     adopted_decisions.pkl, because the description text differs between files.
+
+    Important: We de-duplicate by decision_id (not description) because the same
+    decision_id can have slightly different description text for different speakers.
     """
     meeting_data = influence_df[influence_df['ymd'] == ymd]
 
-    # Get unique decisions based on description
-    unique_decisions = meeting_data.drop_duplicates(subset=['description'])[['description', 'decision_id']].copy()
+    # Get unique decisions based on decision_id (NOT description)
+    # Pick the first description for each decision_id as the canonical one
+    unique_decisions = meeting_data.drop_duplicates(subset=['decision_id'])[['description', 'decision_id']].copy()
     unique_decisions = unique_decisions.sort_values('decision_id').reset_index(drop=True)
 
     # Add placeholder columns for compatibility
@@ -49,19 +53,26 @@ def get_meeting_decisions(ymd: str, influence_df: pd.DataFrame) -> pd.DataFrame:
     return unique_decisions
 
 
-def get_decision_speakers(ymd: str, description: str, influence_df: pd.DataFrame) -> List[str]:
-    """Get all speakers assessed for a specific decision."""
-    # Use 'description' column to match
-    mask = (influence_df['ymd'] == ymd) & (influence_df['description'] == description)
+def get_decision_speakers(ymd: str, decision_id: int, influence_df: pd.DataFrame) -> List[str]:
+    """Get all speakers assessed for a specific decision.
+
+    Uses decision_id for matching because the same decision can have
+    different description text for different speakers.
+    """
+    mask = (influence_df['ymd'] == ymd) & (influence_df['decision_id'] == decision_id)
     speakers = influence_df[mask]['stablespeaker'].unique().tolist()
     return sorted(speakers)
 
 
-def get_influence(ymd: str, description: str, speaker: str, influence_df: pd.DataFrame) -> Optional[Dict]:
-    """Get Claude's influence assessment for a speaker-decision pair."""
+def get_influence(ymd: str, decision_id: int, speaker: str, influence_df: pd.DataFrame) -> Optional[Dict]:
+    """Get Claude's influence assessment for a speaker-decision pair.
+
+    Uses decision_id for matching because the same decision can have
+    different description text for different speakers.
+    """
     mask = (
         (influence_df['ymd'] == ymd) &
-        (influence_df['description'] == description) &
+        (influence_df['decision_id'] == decision_id) &
         (influence_df['stablespeaker'] == speaker)
     )
     rows = influence_df[mask]

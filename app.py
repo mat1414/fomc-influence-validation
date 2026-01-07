@@ -134,7 +134,7 @@ def find_first_incomplete(decisions: pd.DataFrame, data: Dict) -> Tuple[int, int
     ymd = st.session_state.selected_meeting
 
     for dec_idx, row in decisions.iterrows():
-        speakers = get_decision_speakers(ymd, row['description'], data['influence'])
+        speakers = get_decision_speakers(ymd, row['decision_id'], data['influence'])
         for sp_idx, speaker in enumerate(speakers):
             key = get_validation_key(dec_idx, speaker)
             if key not in st.session_state.validations:
@@ -144,7 +144,7 @@ def find_first_incomplete(decisions: pd.DataFrame, data: Dict) -> Tuple[int, int
 
     if len(decisions) > 0:
         last_dec = len(decisions) - 1
-        last_speakers = get_decision_speakers(ymd, decisions.iloc[last_dec]['description'], data['influence'])
+        last_speakers = get_decision_speakers(ymd, decisions.iloc[last_dec]['decision_id'], data['influence'])
         return (last_dec, len(last_speakers) - 1 if last_speakers else 0)
 
     return (0, 0)
@@ -160,12 +160,12 @@ def get_decisions_list(data: Dict) -> pd.DataFrame:
     return st.session_state.decisions_cache
 
 
-def get_speakers_for_decision(decision_idx: int, decision_desc: str, data: Dict) -> List[str]:
+def get_speakers_for_decision(decision_idx: int, decision_id: int, data: Dict) -> List[str]:
     """Get cached speakers list for a decision."""
     if decision_idx not in st.session_state.speakers_cache:
         st.session_state.speakers_cache[decision_idx] = get_decision_speakers(
             st.session_state.selected_meeting,
-            decision_desc,
+            decision_id,
             data['influence']
         )
     return st.session_state.speakers_cache[decision_idx]
@@ -264,7 +264,7 @@ def render_sidebar(data: Dict):
 
             if len(decisions) > 0:
                 dec_row = decisions.iloc[current_dec]
-                speakers = get_speakers_for_decision(current_dec, dec_row['description'], data)
+                speakers = get_speakers_for_decision(current_dec, dec_row['decision_id'], data)
                 speakers_done = count_completed_for_decision(current_dec, speakers)
                 st.write(f"**Speakers done:** {speakers_done} of {len(speakers)}")
 
@@ -273,7 +273,7 @@ def render_sidebar(data: Dict):
             st.header("Decisions")
 
             for idx, row in decisions.iterrows():
-                speakers = get_speakers_for_decision(idx, row['description'], data)
+                speakers = get_speakers_for_decision(idx, row['decision_id'], data)
                 done = count_completed_for_decision(idx, speakers)
                 total = len(speakers)
 
@@ -621,11 +621,12 @@ def main():
     decision_row = decisions.iloc[decision_idx]
     decision = {
         'description': decision_row['description'],
+        'decision_id': decision_row['decision_id'],
         'type': decision_row.get('type', ''),
         'score': decision_row.get('score', 0)
     }
 
-    speakers = get_speakers_for_decision(decision_idx, decision['description'], data)
+    speakers = get_speakers_for_decision(decision_idx, decision['decision_id'], data)
 
     if len(speakers) == 0:
         st.error("No speakers found for this decision.")
@@ -642,7 +643,7 @@ def main():
 
     render_transcript_section(ymd, current_speaker, data)
 
-    influence_data = get_influence(ymd, decision['description'], current_speaker, data['influence'])
+    influence_data = get_influence(ymd, decision['decision_id'], current_speaker, data['influence'])
 
     render_assessment_form(
         current_speaker,
