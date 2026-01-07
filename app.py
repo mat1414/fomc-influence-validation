@@ -155,7 +155,8 @@ def get_decisions_list(data: Dict) -> pd.DataFrame:
     if st.session_state.decisions_cache is None:
         st.session_state.decisions_cache = get_meeting_decisions(
             st.session_state.selected_meeting,
-            data['influence']
+            data['influence'],
+            data['decisions']
         )
     return st.session_state.decisions_cache
 

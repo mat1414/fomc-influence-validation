@@ -30,27 +30,38 @@ def load_all_data() -> Dict[str, pd.DataFrame]:
     return data
 
 
-def get_meeting_decisions(ymd: str, influence_df: pd.DataFrame) -> pd.DataFrame:
-    """Get all decisions for a meeting from the influence data.
+def get_meeting_decisions(ymd: str, influence_df: pd.DataFrame, decisions_df: pd.DataFrame) -> pd.DataFrame:
+    """Get all decisions for a meeting.
 
-    Note: We extract decisions from the influence data itself, not from
-    adopted_decisions.pkl, because the description text differs between files.
+    Uses decision_id from influence data but maps to the canonical descriptions
+    from adopted_decisions.pkl (which are consistent across all speakers).
 
-    Important: We de-duplicate by decision_id (not description) because the same
-    decision_id can have slightly different description text for different speakers.
+    The influence data has varying descriptions for the same decision_id because
+    Claude paraphrased differently for each speaker. We use the adopted_decisions
+    descriptions for consistency with the alignment tool.
     """
-    meeting_data = influence_df[influence_df['ymd'] == ymd]
+    # Get unique decision_ids from influence data for this meeting
+    meeting_influence = influence_df[influence_df['ymd'] == ymd]
+    decision_ids = sorted(meeting_influence['decision_id'].unique())
 
-    # Get unique decisions based on decision_id (NOT description)
-    # Pick the first description for each decision_id as the canonical one
-    unique_decisions = meeting_data.drop_duplicates(subset=['decision_id'])[['description', 'decision_id']].copy()
-    unique_decisions = unique_decisions.sort_values('decision_id').reset_index(drop=True)
+    # Get canonical descriptions from adopted_decisions
+    meeting_decisions = decisions_df[decisions_df['ymd'] == ymd].reset_index(drop=True)
 
-    # Add placeholder columns for compatibility
-    unique_decisions['type'] = ''
-    unique_decisions['score'] = 0
+    # Build result by mapping decision_id to adopted_decisions
+    # decision_id '1', '2', '3'... maps to rows 0, 1, 2...
+    rows = []
+    for dec_id in decision_ids:
+        idx = int(dec_id) - 1  # decision_id is 1-indexed
+        if idx < len(meeting_decisions):
+            row = meeting_decisions.iloc[idx]
+            rows.append({
+                'description': row['description'],
+                'decision_id': dec_id,
+                'type': row.get('type', ''),
+                'score': row.get('score', 0)
+            })
 
-    return unique_decisions
+    return pd.DataFrame(rows)
 
 
 def get_decision_speakers(ymd: str, decision_id: int, influence_df: pd.DataFrame) -> List[str]:
@@ -185,7 +196,7 @@ def search_transcript(transcript_text: str, search_term: str) -> List[Dict]:
 
 def get_meeting_stats(ymd: str, data: Dict) -> Dict:
     """Get statistics for a meeting."""
-    decisions = get_meeting_decisions(ymd, data['influence'])
+    decisions = get_meeting_decisions(ymd, data['influence'], data['decisions'])
     influence = data['influence'][data['influence']['ymd'] == ymd]
 
     num_decisions = len(decisions)
