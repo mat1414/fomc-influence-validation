@@ -42,7 +42,8 @@ def get_meeting_decisions(ymd: str, influence_df: pd.DataFrame, decisions_df: pd
     """
     # Get unique decision_ids from influence data for this meeting
     meeting_influence = influence_df[influence_df['ymd'] == ymd]
-    decision_ids = sorted(meeting_influence['decision_id'].unique())
+    # Sort numerically, not lexicographically (so '10' comes after '9', not before '2')
+    decision_ids = sorted(meeting_influence['decision_id'].unique(), key=lambda x: int(x))
 
     # Get canonical descriptions from adopted_decisions
     meeting_decisions = decisions_df[decisions_df['ymd'] == ymd].reset_index(drop=True)
